@@ -1,0 +1,18 @@
+{
+  "mappings":
+  [
+    {
+      "request": {
+        "method": "POST",
+        "url": "/orders/api"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody":
+        {
+            "sequence": 1
+        }
+      }
+    }
+  ]
+}

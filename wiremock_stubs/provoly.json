@@ -1,0 +1,119 @@
+{
+  "mappings": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "/provoly/api/orders/3"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "order": {
+            "code": 3,
+            "date": "01/31/2024"
+          },
+          "data": {
+            "value": 397.31,
+            "skus":
+            [
+              {
+                "code": 5657,
+                "quantity": 10
+              },
+              {
+                "code": 844990,
+                "quantity": 3
+              }
+            ]
+          },
+          "customer": {
+            "full_name": "Gabriel Esquinati",
+            "birth_date": "06/10/1890",
+            "document": "993313141809"
+          },
+          "shipping": {
+            "street": "Rua das Andradas",
+            "city": "Taquara",
+            "state": "RS",
+            "country": "BR",
+            "postal_code": 123456789,
+            "number": 999
+          }
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+
+    {
+      "request": {
+        "method": "GET",
+        "url": "/provoly/api/orders/1"
+      },
+      "response": {
+        "status": 404,
+        "jsonBody": {
+          "status": "ERROR",
+          "message": "The order 1 does not exist!"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+
+    {
+      "request": {
+        "method": "GET",
+        "url": "/provoly/api/orders/666"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "order": {
+            "code": 666,
+            "date": "01/31/2024"
+          },
+          "data": {
+            "value": 240.10,
+            "skus":
+            [
+              {
+                "code": 123,
+                "quantity": 3
+              },
+              {
+                "code": 65783,
+                "quantity": 1
+              }
+            ]
+          },
+          "customer": {
+            "full_name": "Matheus Rambo",
+            "birth_date": "02/24/1992",
+            "document": "30030030030"
+          },
+          "shipping": {
+            "street": "Brasileira das Neves",
+            "note": "",
+            "city": "Osasco",
+            "state": "SP",
+            "country": "BR",
+            "postal_code": 987654321,
+            "number": 666
+          }
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "delayDistribution": {
+          "type": "uniform",
+          "lower": 1000,
+          "upper": 10000
+        }
+      }
+    }
+
+  ]
+}

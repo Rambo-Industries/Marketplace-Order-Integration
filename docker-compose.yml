@@ -1,0 +1,20 @@
+version: '2.4'
+
+services:
+  mongo:
+    image: mongo:4.4.6
+    restart: always
+    container_name: mongo_demo
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: demouser
+      MONGO_INITDB_ROOT_PASSWORD: demopassword
+      MONGO_INITDB_DATABASE: demo
+    ports:
+      - 27017:27017
+  mock:
+      image: wiremock/wiremock:3.3.1
+      container_name: wiremock_demo
+      ports:
+        - 8080:8080
+      volumes:
+        - ./wiremock_stubs:/home/wiremock/mappings

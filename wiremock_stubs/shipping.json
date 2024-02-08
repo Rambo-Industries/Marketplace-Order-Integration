@@ -1,0 +1,100 @@
+{
+  "mappings": [
+    {
+      "priority": 5,
+      "request":
+      {
+        "method": "GET",
+        "urlPathPattern": "/shipping/api/deliveries/country/[a-z]+/state/[a-z]+/city/[a-z]+/postalcode/[0-9]+"
+      },
+      "response":
+      {
+        "status": 404,
+        "jsonBody": {
+          "message": "There is no route available! Sorry!"
+        }
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "GET",
+        "url": "/shipping/api/deliveries/country/br/state/rs/city/taquara/postalcode/123456789"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+            "value": 15.99,
+            "deliveries": [
+              {
+                "type": "MOTOBOY",
+                "code": 1
+              }
+            ]
+          },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "delayDistribution": {
+          "type": "uniform",
+          "lower": 1000,
+          "upper": 5000
+        }
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "GET",
+        "url": "/shipping/api/deliveries/country/br/state/sp/city/osasco/postalcode/987654321"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "value": 89,
+          "deliveries": [
+            {
+              "type": "Sedex",
+              "code": 4
+            }
+          ]
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "delayDistribution": {
+          "type": "uniform",
+          "lower": 1000,
+          "upper": 5000
+        }
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "GET",
+        "url": "/shipping/api/deliveries/country/br/state/rj/city/niteroi/postalcode/88330123"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "value": 45,
+          "deliveries": [
+            {
+              "type": "RAPIDA-UBER",
+              "code": 5
+            }
+          ]
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "delayDistribution": {
+          "type": "uniform",
+          "lower": 1000,
+          "upper": 5000
+        }
+      }
+    }
+  ]
+}
