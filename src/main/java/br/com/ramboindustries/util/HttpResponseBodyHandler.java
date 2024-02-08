@@ -7,7 +7,6 @@ import org.springframework.http.HttpStatusCode;
 import java.io.IOException;
 import java.net.http.HttpResponse;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -47,16 +46,9 @@ public class HttpResponseBodyHandler<S, E> implements HttpResponse.BodyHandler<O
 
         private static final ObjectMapper MAPPER = new ObjectMapper().registerModule(new JavaTimeModule());
 
-        final CompletableFuture<T> result = new CompletableFuture<>();
+        private final CompletableFuture<T> result = new CompletableFuture<>();
 
-        // BUFFER initial size is 1MiB
-        private static final int BUFFER_INITIAL_SIZE = 1024 * 1024;
-
-        // TODO
-        //private byte[] buffer = new byte[BUFFER_INITIAL_SIZE];
-        //private int bufferIndex = 0;
-
-        private final List<Byte> buffer = new ArrayList<>(BUFFER_INITIAL_SIZE);
+        private final ByteList byteList;
 
         private volatile Flow.Subscription subscription;
 
@@ -67,6 +59,7 @@ public class HttpResponseBodyHandler<S, E> implements HttpResponse.BodyHandler<O
 
         {
             this.resultClass = clazz;
+            byteList = new ByteList();
         }
 
         @Override
@@ -86,15 +79,16 @@ public class HttpResponseBodyHandler<S, E> implements HttpResponse.BodyHandler<O
         }
 
         @Override
-        public void onNext(List<ByteBuffer> items)
+        public void onNext(final List<ByteBuffer> buffers)
         {
-            // TODO
-            for (final var item : items)
+            for (final var buffer : buffers)
             {
-                //toAddSize += item.remaining();
-                while (item.hasRemaining())
+                while (buffer.hasRemaining())
                 {
-                    buffer.add(item.get());
+                    final int remaining = buffer.remaining();
+                    final var tempArray = new byte[remaining];
+                    buffer.get(tempArray, 0, tempArray.length);
+                    byteList.merge(tempArray);
                 }
             }
         }
@@ -110,14 +104,7 @@ public class HttpResponseBodyHandler<S, E> implements HttpResponse.BodyHandler<O
         {
             try
             {
-                // TODO
-                final byte b[] = new byte[buffer.size()];
-                for (int index = 0; index < buffer.size(); index++)
-                {
-                    b[index] = buffer.get(index);
-                }
-
-                final T object = MAPPER.readValue(b, resultClass);
+                final T object = MAPPER.readValue(byteList.get(), resultClass);
                 result.complete(object);
             } catch (final IOException exception)
             {
