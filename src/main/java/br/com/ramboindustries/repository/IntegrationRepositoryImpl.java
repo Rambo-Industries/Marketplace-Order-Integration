@@ -43,6 +43,7 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
@@ -59,18 +60,33 @@ public class IntegrationRepositoryImpl implements IntegrationRepository
     private final MongoTemplate mongoTemplate;
     private static final List<Status> NON_TERMINALS = Stream.of(Status.values()).filter(Predicate.not(Status::isTerminal)).toList();
     private static final Sort SORT_BY = Sort.by("createdAt").ascending();
-    private static final Query QUEUE_QUERY = Query
-            .query(
-                    Criteria
-                            .where("status")
-                            .in(NON_TERMINALS)
-            )
-            .with(SORT_BY);
+
+    private record ProcessingLock(String user, String threadName, LocalDateTime acquired)
+    {
+        public ProcessingLock(final String user, final String threadName)
+        {
+            this(user, threadName, LocalDateTime.now());
+        }
+    }
 
     @Override
     public Optional<Integration> nextOrders()
     {
-        return Optional.ofNullable(mongoTemplate.findOne(QUEUE_QUERY, Integration.class));
+        final var q = Query.query(
+                Criteria
+                        .where("status")
+                        .in(NON_TERMINALS)
+                        .orOperator(List.of(
+                                Criteria.where("lock").isNull(),
+                                // The lock should not hold more than 5 minutes
+                                Criteria.where("lock.acquired").gte(LocalDateTime.now().minusMinutes(5))
+                        ))
+        ).
+                with(SORT_BY);
+
+        final var update = new Update().set("lock", new ProcessingLock(System.getProperty("user.name", "undefined"), Thread.currentThread().getName()));
+        final var options = new FindAndModifyOptions().upsert(false).returnNew(true);
+        return Optional.ofNullable(mongoTemplate.findAndModify(q, update, options, Integration.class));
     }
 
     @Override
@@ -80,7 +96,8 @@ public class IntegrationRepositoryImpl implements IntegrationRepository
         var update = new Update()
                 .set("partner", integration.getPartner())
                 .set("executions", integration.getExecutions())
-                .set("status", integration.getStatus());
+                .set("status", integration.getStatus())
+                .set("lock", null);
         if (Objects.isNull(integration.getId()))
         {
             update = update.set("create_at", LocalDateTime.now());
