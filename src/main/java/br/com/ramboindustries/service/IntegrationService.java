@@ -48,6 +48,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -61,6 +65,7 @@ public class IntegrationService
     private final Map<PartnerType, IntegrationReceive> onIntegration;
     private final IntegrationRepository repository;
     private final TransitionService transition;
+    private final Executor executor;
 
     public IntegrationService(
             final List<IntegrationReceive> integrations,
@@ -77,6 +82,9 @@ public class IntegrationService
                 );
         this.repository = repository;
         this.transition = transition;
+        final var scheduled  = Executors.newScheduledThreadPool(3);
+        scheduled.scheduleWithFixedDelay(this::process, 0, 500, TimeUnit.MILLISECONDS);
+        this.executor = scheduled;
     }
 
     public void push(final GenerateStep generate)
@@ -102,51 +110,32 @@ public class IntegrationService
         }
     }
 
-    // Runs in a loop, on a different thread
-    @PostConstruct
     public void process()
     {
-        final var myThread = new Thread(() ->
-        {
-            while (true)
-            {
-                try {
-                    Thread.sleep(1000);
+        repository.nextOrders()
+                .ifPresent(integration ->
+                {
+                    final Processor processor = transition.getProcessor(integration.getStatus());
+                    if (Objects.isNull(processor))
+                    {
+                        // no processor found, so, just try to advance
+                        integration.setStatus(transition.nextStatus(integration.getStatus()));
+                        repository.save(integration);
+                    }
+                    else
+                    {
+                        final var steps = integration.getExecutions()
+                                .stream()
+                                .filter(process -> process.type() == ResultType.ADVANCE)
+                                .map(Result::step)
+                                .filter(step -> processor.uses().stream().anyMatch(status -> status == step.getStatus()))
+                                .toList();
 
-                    repository.nextOrders()
-                            .ifPresent(integration ->
-                            {
-                                final Processor processor = transition.getProcessor(integration.getStatus());
-                                if (Objects.isNull(processor))
-                                {
-                                    // no processor found, so, just try to advance
-                                    integration.setStatus(transition.nextStatus(integration.getStatus()));
-                                    repository.save(integration);
-                                }
-                                else
-                                {
-                                    final var steps = integration.getExecutions()
-                                            .stream()
-                                            .filter(process -> process.type() == ResultType.ADVANCE)
-                                            .map(Result::step)
-                                            .filter(step -> processor.uses().stream().anyMatch(status -> status == step.getStatus()))
-                                            .toList();
-
-                                    final var result = processor.apply(steps, integration.getPartner());
-                                    checkResult(result, integration);
-                                    repository.save(integration);
-                                }
-                            }
-                            );
-
-
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        });
-        myThread.setDaemon(true);
-        myThread.start();
+                        final var result = processor.apply(steps, integration.getPartner());
+                        checkResult(result, integration);
+                        repository.save(integration);
+                    }
+                });
     }
 
     private boolean isRecoverable(final List<Result> results)
