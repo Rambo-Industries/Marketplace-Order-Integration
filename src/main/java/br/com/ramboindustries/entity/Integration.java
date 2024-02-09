@@ -38,8 +38,8 @@ import org.bson.types.ObjectId;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 
 @Document(collection = "integrations")
 @Data
@@ -50,13 +50,11 @@ public class Integration
     private final PartnerType partner;
     private final List<Result> executions;
     private Status status;
-    private final LocalDateTime createdAt;
 
-    public Integration(ObjectId id, PartnerType partner, List<Result> executions, LocalDateTime createdAt) {
-        this.id = id;
+    public Integration(ObjectId id, PartnerType partner, List<Result> executions) {
+        this.id = Objects.requireNonNullElseGet(id, ObjectId::new);
         this.partner = partner;
         this.executions = executions;
-        this.createdAt = createdAt;
         status = Status.GENERATE;
     }
 }

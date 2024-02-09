@@ -88,7 +88,7 @@ public class IntegrationService
         if (steps.isEmpty())
         {
             // Partner sent invalid data maybe? ...
-            final var integration = new Integration(null, partner, List.of(Result.unrecoverable(generate)), LocalDateTime.now());
+            final var integration = new Integration(null, partner, List.of(Result.unrecoverable(generate)));
             integration.setStatus(Status.FAILED);
             repository.save(integration);
             log.error("An error occurred with integration: {}", generate);
@@ -98,7 +98,7 @@ public class IntegrationService
         // Every step is a new order. Also, we need to keep track of the step that generated those N steps ...
         for (final var step : steps)
         {
-            repository.save(new Integration(null, partner, List.of(Result.advance(generate), Result.advance(step)), LocalDateTime.now()));
+            repository.save(new Integration(null, partner, List.of(Result.advance(generate), Result.advance(step))));
         }
     }
 
@@ -113,30 +113,33 @@ public class IntegrationService
                 try {
                     Thread.sleep(1000);
 
-                    final var integrations = repository.next();
-                    for (final var integration : integrations)
-                    {
+                    repository.nextOrders()
+                            .ifPresent(integration ->
+                            {
+                                final Processor processor = transition.getProcessor(integration.getStatus());
+                                if (Objects.isNull(processor))
+                                {
+                                    // no processor found, so, just try to advance
+                                    integration.setStatus(transition.nextStatus(integration.getStatus()));
+                                    repository.save(integration);
+                                }
+                                else
+                                {
+                                    final var steps = integration.getExecutions()
+                                            .stream()
+                                            .filter(process -> process.type() == ResultType.ADVANCE)
+                                            .map(Result::step)
+                                            .filter(step -> processor.uses().stream().anyMatch(status -> status == step.getStatus()))
+                                            .toList();
 
-                        final Processor processor = transition.getProcessor(integration.getStatus());
-                        if (Objects.isNull(processor))
-                        {
-                            // no processor found, so, just try to advance
-                            integration.setStatus(transition.nextStatus(integration.getStatus()));
-                            repository.save(integration);
-                            continue;
-                        }
+                                    final var result = processor.apply(steps, integration.getPartner());
+                                    checkResult(result, integration);
+                                    repository.save(integration);
+                                }
+                            }
+                            );
 
-                        final var steps = integration.getExecutions()
-                                .stream()
-                                .filter(process -> process.type() == ResultType.ADVANCE)
-                                .map(Result::step)
-                                .filter(step -> processor.uses().stream().anyMatch(status -> status == step.getStatus()))
-                                .toList();
 
-                        final var result = processor.apply(steps, integration.getPartner());
-                        checkResult(result, integration);
-                        repository.save(integration);
-                    }
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }

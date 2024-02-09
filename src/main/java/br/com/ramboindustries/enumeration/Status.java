@@ -31,25 +31,33 @@
 
 package br.com.ramboindustries.enumeration;
 
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+
+
+@RequiredArgsConstructor
+@Getter
 public enum Status
 {
 
-    GENERATE,
+    GENERATE(false),
 
-    RECEIVE,
+    RECEIVE(false),
 
-    FETCH,
+    FETCH(false),
 
-    CONVERT,
+    CONVERT(false),
 
-    FAILED,
+    FAILED(true),
 
-    FINISHED,
+    FINISHED(true),
 
-    VALIDATE,
+    VALIDATE(false),
 
-    ORDER_INTEGRATION,
+    ORDER_INTEGRATION(false),
 
-    SHIPPING_INTEGRATION
+    SHIPPING_INTEGRATION(false);
+
+    private final boolean terminal;
 
 }

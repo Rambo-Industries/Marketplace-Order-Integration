@@ -32,16 +32,14 @@
 package br.com.ramboindustries.repository;
 
 import br.com.ramboindustries.entity.Integration;
-import org.bson.types.ObjectId;
-import org.springframework.data.mongodb.repository.MongoRepository;
-import org.springframework.data.mongodb.repository.Query;
 
-import java.util.List;
+import java.util.Optional;
 
-public interface IntegrationRepository extends MongoRepository<Integration, ObjectId>
+public interface IntegrationRepository
 {
 
-    @Query("{ 'status': { '$nin': ['FINISHED', 'FAILED', null] } }")
-    List<Integration> next();
+    Optional<Integration> nextOrders();
+
+    void save(final Integration integration);
 
 }
