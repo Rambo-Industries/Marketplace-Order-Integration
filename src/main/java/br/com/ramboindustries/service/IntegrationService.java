@@ -31,9 +31,9 @@
 
 package br.com.ramboindustries.service;
 
-import br.com.ramboindustries.entity.steps.GenerateStep;
 import br.com.ramboindustries.entity.Integration;
 import br.com.ramboindustries.entity.Result;
+import br.com.ramboindustries.entity.steps.GenerateStep;
 import br.com.ramboindustries.enumeration.PartnerType;
 import br.com.ramboindustries.enumeration.ResultType;
 import br.com.ramboindustries.enumeration.Status;
@@ -45,7 +45,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -61,14 +60,12 @@ public class IntegrationService
 
     private final Map<PartnerType, IntegrationReceive> onIntegration;
     private final IntegrationRepository repository;
-
-    private final Map<Status, Processor> finiteMachine;
-    private final EnumMap<Status, Status> transitions;
+    private final TransitionService transition;
 
     public IntegrationService(
             final List<IntegrationReceive> integrations,
-            final List<Processor> processors,
-            final IntegrationRepository repository
+            final IntegrationRepository repository,
+            final TransitionService transition
     )
     {
         onIntegration = integrations
@@ -78,26 +75,8 @@ public class IntegrationService
                         Function.identity()
                     )
                 );
-
-        finiteMachine = processors
-                .stream()
-                .collect(
-                        Collectors.toUnmodifiableMap(
-                                Processor::name,
-                                Function.identity()
-                        )
-                );
-
         this.repository = repository;
-
-        transitions = new EnumMap<>(Status.class);
-        transitions.put(Status.GENERATE, Status.RECEIVE);
-        transitions.put(Status.RECEIVE, Status.FETCH);
-        transitions.put(Status.FETCH, Status.CONVERT);
-        transitions.put(Status.CONVERT, Status.VALIDATE);
-        transitions.put(Status.VALIDATE, Status.SHIPPING_INTEGRATION);
-        transitions.put(Status.SHIPPING_INTEGRATION, Status.ORDER_INTEGRATION);
-        transitions.put(Status.ORDER_INTEGRATION, Status.FINISHED);
+        this.transition = transition;
     }
 
     public void push(final GenerateStep generate)
@@ -138,11 +117,11 @@ public class IntegrationService
                     for (final var integration : integrations)
                     {
 
-                        final Processor processor = finiteMachine.get(integration.getStatus());
+                        final Processor processor = transition.getProcessor(integration.getStatus());
                         if (Objects.isNull(processor))
                         {
                             // no processor found, so, just try to advance
-                            integration.setStatus(transitions.get(integration.getStatus()));
+                            integration.setStatus(transition.nextStatus(integration.getStatus()));
                             repository.save(integration);
                             continue;
                         }
@@ -193,7 +172,7 @@ public class IntegrationService
             case ADVANCE ->
             {
                 // Advance to the next status
-                integration.setStatus(transitions.get(integration.getStatus()));
+                integration.setStatus(transition.nextStatus(integration.getStatus()));
             }
             case FAIL_UNRECOVERABLE ->
             {
